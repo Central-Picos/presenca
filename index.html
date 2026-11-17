@@ -81,6 +81,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .modal-box{background:var(--card);border-radius:12px;padding:22px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px}
 .modal-box h2{font-size:18px}
 body.locked .edit-only{display:none!important}
+body.gate main, body.gate header .tab, body.gate .savebar{display:none!important}
 .savebar{font-size:12px;color:#f1efee;opacity:.65;padding:0 0 10px}
 
 main{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
@@ -992,15 +993,19 @@ const KEY="centralpicos_presenca_v2";
 let lockMode="enter";
 function applyLock(){
   document.body.classList.toggle("locked", !unlocked);
-  const b=$("b-lock"); b.textContent = unlocked ? `Editando como ${usuario} · Sair` : "Entrar para editar"; b.classList.toggle("on", unlocked);
+  document.body.classList.toggle("gate", !meuPapel);
+  if(sessaoOk && !meuPapel){ if($("modal").hidden || lockMode!=="gate") openLock("gate"); }
+  else if(meuPapel && lockMode==="gate"){ $("modal").hidden=true; lockMode="enter"; }
+  const b=$("b-lock"); b.textContent = unlocked ? `Editando como ${usuario} · Sair` : meuPapel ? `${usuario} · Sair` : "Entrar"; b.classList.toggle("on", unlocked);
   if(!unlocked && $("view-lancar").classList.contains("on")) { location.hash="painel"; show("painel"); }
   renderHist(); renderBackupBar();
 }
 function openLock(mode){
   lockMode = mode || "enter";
   const change = lockMode==="change";
-  $("lock-title").textContent = change ? "Trocar minha senha" : "Entrar para editar";
-  $("lock-sub").textContent = change ? `Nova senha para ${usuario}.` : "Só os e-mails autorizados conseguem lançar, editar ou excluir cultos.";
+  $("lock-title").textContent = change ? "Trocar minha senha" : lockMode==="gate" ? "Entrar" : "Entrar para editar";
+  $("lock-cancel").style.display = lockMode==="gate" ? "none" : "";
+  $("lock-sub").textContent = change ? `Nova senha para ${usuario}.` : lockMode==="gate" ? "Acesso restrito. Entre com o seu e-mail cadastrado." : "Só os e-mails autorizados conseguem lançar, editar ou excluir cultos.";
   $("lock-l2").style.display = change ? "" : "none";
   $("lock-le").style.display = change ? "none" : "";
   $("lock-ok").textContent = change ? "Salvar nova senha" : "Entrar";
@@ -1010,7 +1015,7 @@ function openLock(mode){
 }
 $("lock-cancel").addEventListener("click",()=>{ $("modal").hidden=true; });
 $("b-lock").addEventListener("click",async ()=>{
-  if(unlocked){ await sb.auth.signOut(); return; }
+  if(unlocked || meuPapel){ await sb.auth.signOut(); return; }
   openLock();
 });
 $("lock-form").addEventListener("submit", async e=>{
@@ -1033,24 +1038,30 @@ $("lock-form").addEventListener("submit", async e=>{
   const {error}=await sb.auth.signInWithPassword({email, password:p1});
   ok.disabled=false; ok.textContent="Entrar";
   if(error){ st.textContent = /invalid/i.test(error.message) ? "E-mail ou senha incorretos." : "Não foi possível entrar agora. Verifique a internet."; return; }
-  const {data:aut}=await sb.rpc("eh_autorizado");
-  if(!aut){ await sb.auth.signOut(); st.textContent="Este e-mail não tem autorização para editar."; return; }
+  const {data:papel}=await sb.rpc("meu_papel");
+  if(!papel){ await sb.auth.signOut(); st.textContent="Este e-mail não tem acesso a esta página."; return; }
   try{ localStorage.setItem(KEY+"_lastuser", email); }catch(e){}
   $("modal").hidden=true;
 });
-sb.auth.onAuthStateChange(async (ev, session)=>{
+let meuPapel="", sessaoOk=false;
+sb.auth.onAuthStateChange((ev, session)=>{ setTimeout(()=>atualizarSessao(session),0); });
+async function atualizarSessao(session){
   const em = session && session.user ? (session.user.email||"").toLowerCase() : "";
-  let aut=false;
-  if(em){ try{ const {data}=await sb.rpc("eh_autorizado"); aut=!!data; }catch(e){} }
-  const mudou = (aut!==unlocked) || (em!==usuario);
-  unlocked=aut; usuario=aut?em:"";
+  let papel="";
+  if(em){ try{ const {data}=await sb.rpc("meu_papel"); papel=data||""; }catch(e){} }
+  if(em && !papel){ try{ await sb.auth.signOut(); }catch(e){} }
+  const aut = papel==="editor";
+  const mudou = !sessaoOk || (aut!==unlocked) || (papel!==meuPapel) || (em!==usuario);
+  sessaoOk=true; unlocked=aut; meuPapel=papel; usuario=papel?em:"";
+  if(!papel){ rows=[]; log=[]; try{ renderDashboard(); }catch(e){} }
   applyLock();
-  if(mudou) carregar();
-});
+  if(mudou && papel) carregar();
+}
 
 /* ---------- Dados ---------- */
 let carregando=false;
 async function carregar(){
+  if(!meuPapel) return;
   if(carregando) return; carregando=true;
   try{
     const cols = unlocked ? "id,data,culto,dados,atualizado_em,atualizado_por" : "id,data,culto,dados,atualizado_em";
