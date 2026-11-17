@@ -1,0 +1,15 @@
+# O plano gratuito do Supabase pausa projetos sem uso por 7 dias.
+# Esta rotina faz uma consulta leve a cada 3 dias para manter o banco ativo.
+name: Manter Supabase ativo
+on:
+  schedule:
+    - cron: "17 12 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consulta leve
+        run: |
+          curl -sf "https://khyacyndvsnmdaszxlvy.supabase.co/rest/v1/config?select=id" \
+            -H "apikey: sb_publishable_rqzxj_2YbdkS11gfL0V8xg_0p-coC9i" > /dev/null
