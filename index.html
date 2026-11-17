@@ -986,7 +986,7 @@ $("b-copy").addEventListener("click",e=>{ const r=readForm(); if(!r.data){ setSt
 /* ---------- Supabase ---------- */
 const SUPABASE_URL="https://khyacyndvsnmdaszxlvy.supabase.co";
 const SUPABASE_KEY="sb_publishable_rqzxj_2YbdkS11gfL0V8xg_0p-coC9i";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, autoRefreshToken:true, lock:(nome, espera, fn)=>fn()}});
 const KEY="centralpicos_presenca_v2";
 
 /* ---------- Login ---------- */
