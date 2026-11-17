@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Consulta leve
         run: |
-          curl -sf "https://khyacyndvsnmdaszxlvy.supabase.co/rest/v1/config?select=id" \
-            -H "apikey: sb_publishable_rqzxj_2YbdkS11gfL0V8xg_0p-coC9i" > /dev/null
+          curl -sf -X POST "https://khyacyndvsnmdaszxlvy.supabase.co/rest/v1/rpc/meu_papel" \
+            -H "apikey: sb_publishable_rqzxj_2YbdkS11gfL0V8xg_0p-coC9i" -H "Content-Type: application/json" -d '{}' > /dev/null
